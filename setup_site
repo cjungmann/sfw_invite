@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+declare -i setup_site_standalone=0
+
+if [ -z "$SiteRoot" ]; then
+    setup_site_standalone=1
+    source setup_common
+fi
+
+site_dir_exists() { [ -d "$PWD/site" ]; }
+
+create_site_dir()
+{
+    mkdir "site"
+    cp /usr/local/lib/schemafw/default.xsl     site/default.xsl
+    ln -s /usr/local/lib/schemafw/web_includes site/includes
+}
+
+add_srm_files()
+{
+    local target="site/${LoginSRMTarget}"
+    cecho "Adding srm file '$target'"
+    echo "\$database : $DBName"                                 > "$target"
+    echo "\$xml-stylesheet : default.xsl"                      >> "$target"
+    echo "\$default-mode : login"                              >> "$target"
+    echo                                                       >> "$target"
+    gensfw_srm_from_proc "$DBName" App_Account_Login  login    >> "$target"
+    gensfw_srm_from_proc "$DBName" App_Account_Create register >> "$target"
+}
+
+
+must_prepare_site() { ! site_dir_exists; }
+prepare_site()
+{
+    create_site_dir
+    add_srm_files
+}
+
+if [ "$setup_site_standalone" -ne 0 ]; then
+    if [ "$1" == "remove" ]; then
+        unlink site/includes
+        rm site/*
+        rmdir site
+    else
+        if must_prepare_site; then
+            cecho "Preparing site directory"
+            prepare_site
+        fi
+    fi
+fi

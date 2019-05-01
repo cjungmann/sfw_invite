@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+source setup_common
+
+declare target
+
+source setup_site
+source setup_apache
+
+if must_prepare_site; then
+    prepare_site
+fi
+
+if must_prepare_apache; then
+    prepare_apache
+fi
+
+target="site/${LoginSRMTarget}"
+
+echo "\$database = $DBNAME"                                 > "$target"
+echo "\$xml-stylesheet = default.xsl"                      >> "$target"
+gensfw_srm_from_proc "$DBName" App_Account_Login  login    >> "$target"
+gensfw_srm_from_proc "$DBName" App_Account_Create register >> "$target"

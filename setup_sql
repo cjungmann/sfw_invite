@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+
+
+declare -i setup_sql_standalone=0
+
+if [ -z "$SiteRoot" ]; then
+    setup_sql_standalone=1
+    source setup_common
+fi
+
+database_exists()
+{
+   local dbname="$1"
+
+   local -a qarr=(
+       'SELECT COUNT(*)'
+       '  FROM information_schema.SCHEMATA'
+       " WHERE SCHEMA_NAME = '$dbname'"
+   )
+
+   local -i count
+   count=$( mysql -BN -e "${qarr[*]}" )
+
+   [ "$count" -ne 0 ]
+}
+
+create_database()
+{
+    local dbname="$1"
+    if database_exists "${dbname}"; then
+        cecho "$dbname already exists.  No further action taken."
+        return 1
+    else
+        mysql -e "CREATE DATABASE $dbname"
+        cecho "Created database $dbname."
+        return 0
+    fi
+}
+
+add_framework_to_database()
+{
+    local dbname="$1"
+    local fwpath=$( locate sys_procs.sql | grep SchemaServer - | grep usr - )
+    cecho "Loading procedures from '$fwpath' to database '$dbname'"
+    mysql -f "$dbname" < "$fwpath"
+}
+
+load_sql_scripts()
+{
+    local dbname="$1"
+    local script
+    local -a scripts
+
+    echo
+    cecho "Sorting and loading table creation scripts."
+    scripts=( $( ls -1 sql | grep tables ) )
+    for script in "${scripts[@]}"; do
+        cecho "...loading table script '$script'"
+        mysql "${dbname}" < "sql/$script"
+    done
+
+    echo
+    cecho "Sorting and loading non-table creation scripts."
+    scripts=( $( ls -1 sql | grep -v tables ) )
+    for script in "${scripts[@]}"; do
+        cecho "...loading procedure script '$script'"
+        mysql "${dbname}" < "sql/$script"
+    done
+}
+
+must_prepare_sql() { ! database_exists; }
+
+if [ "$setup_sql_standalone" -ne 0 ]; then
+    if [ "$1" == "remove" ]; then
+        mysql -e "DROP DATABASE ${DBName}"
+    else
+        if must_prepare_sql; then
+            create_database "${DBName}"
+            add_framework_to_database "${DBName}"
+            load_sql_scripts "${DBName}"
+        fi
+    fi
+fi    
+

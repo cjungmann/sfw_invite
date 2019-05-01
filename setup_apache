@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+
+declare -i setup_apache_standalone=0
+
+if [ -z "$SiteRoot" ]; then
+    echo "Loading setup_common"
+    setup_apache_standalone=1
+    source setup_common
+fi
+
+get_conf_text()
+{
+    local -a lines=(
+        "<VirtualHost *:80>"
+        "   DocumentRoot $PWD/site"
+        "   ServerName ${SiteRoot}.cpjj.net"
+        "   ServerAlias ${DBName,,}"
+        "   DirectoryIndex ${LoginSRMTarget}"
+        "</VirtualHost>"
+    )
+
+    local IFS=$'\n'
+    echo "${lines[*]}"
+}
+
+write_conf()
+{
+    if is_root; then
+        get_conf_text > "/etc/apache2/sites-available/${SiteName}.conf"
+        a2ensite "${SiteName}"
+        service apache2 reload
+    else
+        cecho "Not running as root, no apache updates executed."
+    fi
+}
+
+conf_exists()
+{
+   local -a confs
+   confs=( $( grep "${SiteName}" /etc/apache2/sites-available/*.conf ) )
+   cecho "There are ${#confs[@]} config files what include '${SiteName}'"
+   [ "${#confs[@]}" -ne 0 ]
+}
+
+host_exists()
+{
+    local -a hosts
+    hosts=( $( grep -h "${SiteName}" /etc/hosts ) )
+    [ "${#hosts[@]}" -ne 0 ]
+}
+
+update_hosts()
+{
+    if ! host_exists; then
+        cecho "Adding ${SiteName} being added to /etc/hosts"
+        echo "127.0.0.1  ${SiteName}" >> /etc/hosts
+    fi
+}
+
+remove_from_hosts()
+{
+    if host_exists; then
+        sed -i "/${SiteName}/d" /etc/hosts
+    fi
+}
+
+remove_from_apache()
+{
+    if ! is_root; then
+        cecho "is_NOT_root"
+    fi
+
+    if is_root && host_exists; then
+        local sitepath="/etc/apache2/sites-available/${SiteName}.conf"
+        a2dissite "${SiteName}"
+        service apache2 reload
+        cecho "Removing '${sitepath}'"
+        rm "/etc/apache2/sites-available/${SiteName}.conf"
+        remove_from_hosts
+    fi
+}
+
+if [ "$setup_apache_standalone" -ne 0 ]; then
+    cecho "Running as standalone with SiteName = '$SiteName' with \$1 = $1"
+    if [ "$1" == "remove" ]; then
+        remove_from_apache
+    else
+        if ! conf_exists; then
+            cecho "Config file missing, going to create it now."
+            write_conf
+            update_hosts
+        else
+            cecho "We found ${localAlias} configuration file"
+        fi
+    fi
+fi

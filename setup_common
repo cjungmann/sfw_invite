@@ -1,0 +1,10 @@
+
+declare SiteRoot="invite"
+
+declare DBName="SFW_${SiteRoot^^}"
+declare SiteName="${DBName,,}"
+
+declare LoginSRMTarget="login.srm"
+
+is_root() { [ "$USER" == "root" ]; }
+cecho()   { echo "[1;36m$1[0m"; }
