@@ -56,8 +56,11 @@ proc_block: BEGIN
       SELECT LAST_INSERT_ID() INTO account_id;
 
       IF account_id IS NOT NULL THEN
-         INSERT INTO User(id_account, email, pword_hash)
-                VALUES(account_id, email, ssys_hash_password_with_salt(password, @dropped_salt));
+         INSERT INTO User(id_account, user_type, email, pword_hash)
+                VALUES(account_id,
+                       'administrator',
+                        email,
+                        ssys_hash_password_with_salt(password, @dropped_salt));
 
          IF ROW_COUNT() > 0 THEN
             SELECT LAST_INSERT_ID() INTO user_id;
