@@ -3,7 +3,6 @@
 declare -i setup_apache_standalone=0
 
 if [ -z "$SiteRoot" ]; then
-    echo "Loading setup_common"
     setup_apache_standalone=1
     source setup_common
 fi
