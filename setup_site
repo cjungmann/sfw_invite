@@ -16,10 +16,10 @@ create_site_dir()
     ln -s /usr/local/lib/schemafw/web_includes site/includes
 }
 
-add_srm_files()
+add_login_srm()
 {
     local target="site/${LoginSRMTarget}"
-    cecho "Adding srm file '$target'"
+    cecho "Adding login script '$target'"
     echo "\$database : $DBName"                                 > "$target"
     echo "\$xml-stylesheet : default.xsl"                      >> "$target"
     echo "\$default-mode : login"                              >> "$target"
@@ -28,12 +28,66 @@ add_srm_files()
     gensfw_srm_from_proc "$DBName" App_Account_Create register >> "$target"
 }
 
+tweak_login_srm()
+{
+    local target="site/${LoginSRMTarget}"
+    cecho "Tweaking login script '$target'"
+
+    local -a cmds=(
+        # Make templates for copying
+        append_mode "jumps" --
+        last_child "jumps" "jump0:home.srm" --
+        last_child "jumps" "jump1:login.srm" --
+
+        append_mode "button" --
+        last_child "button" "type:jump" --
+        last_child "button" "label" --
+        last_child "button" "url" --
+
+        # Add buttons to forms:
+        copy_as_first_child "login/schema" "button" --
+        set_line "login/schema/button/label" "<%SET_VALUE>" "Register new account" --
+        set_line "login/schema/button/url" "<%SET_VALUE>" "?register" --
+        copy_as_first_child "register/schema" "button" --
+        set_line "register/schema/button/label" "<%SET_VALUE>" "Login to an existing account" --
+        set_line "register/schema/button/url" "<%SET_VALUE>" "?login" --
+
+        # Set form titles
+        after_sibling login/type "title:Login to Your Account" --
+        after_sibling register/type "title:Create a Trial Account" --
+
+        # Set session-type for login modes
+        label SESS_TYPE --
+        first_child "*[!session-type][type]" "session-type:establish" --
+        goto_if_not REPLACE_RESULT "*[!session-type][type]" --
+        goto SESS_TYPE --
+
+        label REPLACE_RESULT --
+        copy_as_last_child "*/result[type:update]" "jumps" --
+        delete "*/result/type:update" --
+        goto_if_not END "*/result[type:update]" --
+        goto REPLACE_RESULT --
+
+        label END --
+
+        # remove template modes
+        delete "jumps" --
+        delete "buttons" --
+
+        hilite_message "Writing to '${target}'" --
+        write_file "${target}"
+        )
+
+    gensfw_srm "$target" "${cmds[@]}"
+}
+
 
 must_prepare_site() { ! site_dir_exists; }
 prepare_site()
 {
     create_site_dir
-    add_srm_files
+    add_login_srm
+    tweak_login_srm
 }
 
 if [ "$setup_site_standalone" -ne 0 ]; then
@@ -41,6 +95,9 @@ if [ "$setup_site_standalone" -ne 0 ]; then
         unlink site/includes
         rm site/*
         rmdir site
+    elif [ "$1" == "login" ]; then
+        add_login_srm
+        tweak_login_srm
     else
         if must_prepare_site; then
             cecho "Preparing site directory"
