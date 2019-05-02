@@ -7,8 +7,8 @@ This project can also serve as an example of several development patterns:
 
 - Simple registration for new accounts.
 
-- Generating a login SRM file
-  - Create SRM modes from SQL procedures
+- Generating a login SRM file (in script **setup_site**)
+  - Use **gensfw_srm_from_proc** Create SRM modes from SQL procedures
   - Using **gensfw_srm** to modify and augment
     the generated login SRM file.
 
