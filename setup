@@ -17,7 +17,3 @@ fi
 
 target="site/${LoginSRMTarget}"
 
-echo "\$database = $DBNAME"                                 > "$target"
-echo "\$xml-stylesheet = default.xsl"                      >> "$target"
-gensfw_srm_from_proc "$DBName" App_Account_Login  login    >> "$target"
-gensfw_srm_from_proc "$DBName" App_Account_Create register >> "$target"
