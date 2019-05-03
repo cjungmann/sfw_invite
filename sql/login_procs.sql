@@ -1,5 +1,19 @@
 DELIMITER $$
 
+-- -----------------------------------------------
+DROP FUNCTION IF EXISTS App_Email_Form_Is_Valid $$
+CREATE FUNCTION App_Email_Form_Is_Valid(email VARCHAR(128))
+   RETURNS BOOLEAN
+BEGIN
+   IF email IS NULL THEN
+      RETURN FALSE;
+   ELSE
+      RETURN email REGEXP '[[:alnum:]][[:alnum:]-]+(\.[[:alnum:]][[:alnum:]-]+)*@[[:alnum:]][[:alnum:]-]+(\.[[:alnum:]][[:alnum:]-]+)+';
+   END IF;
+
+   -- RETURN email REGEXP '[[:alnum:]!#$%&\'*+-/=?^_`{|}~]+(\.[[:alnum:]!#$%&\'*+-/=?^_`{|}~]+)*@[[:alnum:]][[:alnum:]-])+(\.[[:alnum:]][[:alnum:]-])+';
+END $$
+
 -- ------------------------------------------
 DROP PROCEDURE IF EXISTS App_Account_Login $$
 CREATE PROCEDURE App_Account_Login(email VARCHAR(128),
@@ -18,6 +32,9 @@ BEGIN
       SELECT 1 AS error, 'Email or password not recognized.' AS msg;
    ELSE
       SELECT 0 AS error, 'Logged in.' AS msg;
+
+      -- This generated procedure resides in session_procs.sql:
+      CALL App_Session_Initialize(account_id, user_id, email);
    END IF;   
 
 END $$
@@ -37,6 +54,24 @@ proc_block: BEGIN
       SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='No dropped_salt to encode the password.';
    END IF;
 
+   -- Leave with error for invalid or missing parameters:
+   IF NOT (App_Email_Form_Is_Valid(email)) THEN
+      SELECT 2 AS error,
+             CONCAT('The email address, ', email, ' is not valid.') AS msg;
+      LEAVE proc_block;
+   END IF;
+
+   IF account_name IS NULL OR LENGTH(account_name) = 0 THEN
+      SELECT 3 AS error, 'Missing account name' AS msg;
+      LEAVE proc_block;
+   END IF;
+
+   IF password IS NULL OR LENGTH(password) = 0 THEN
+      SELECT 3 AS error, 'Missing password' AS msg;
+      LEAVE proc_block;
+   END IF;
+
+   -- Confirm unique account_name
    SELECT COUNT(*) INTO name_count
      FROM Account
     WHERE name = account_name;
@@ -47,7 +82,7 @@ proc_block: BEGIN
       LEAVE proc_block;
    END IF;
 
-   -- Account creation commences here:
+   -- Input validated, account creation may commence.
    INSERT INTO Account(name) VALUES(account_name);
 
    IF ROW_COUNT() > 0 THEN
@@ -71,6 +106,10 @@ proc_block: BEGIN
                IF ROW_COUNT() > 0 THEN
                   SELECT 0 AS error, 'Success' AS msg;
                   COMMIT;
+
+                  -- This generated procedure resides in session_procs.sql:
+                  CALL App_Session_Initialize(account_id, user_id, email);
+
                   LEAVE proc_block;
                END IF;
             END IF;
