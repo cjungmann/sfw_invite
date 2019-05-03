@@ -25,12 +25,22 @@ CREATE TABLE IF NOT EXISTS Salt
    salt      CHAR(32)
 );
 
+CREATE TABLE IF NOT EXISTS Session_Info
+(
+   id_session INT UNSIGNED UNIQUE KEY,
+
+   account_id INT UNSIGNED NULL,
+   user_id    INT UNSIGNED NULL,
+   user_type  VARCHAR(40),
+   user_email VARCHAR(128)
+);
+
 CREATE TABLE IF NOT EXISTS Invitation
 (
    id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-   id_account INT UNSIGNED NOT NULL,
-   email      VARCHAR(128),
+   account_id INT UNSIGNED NOT NULL,
+   email VARCHAR(128),
    expires    DATETIME,
 
-   INDEX(id_account)
+   INDEX(account_id)
 );
