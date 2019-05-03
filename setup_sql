@@ -59,6 +59,9 @@ load_sql_scripts()
         mysql "${dbname}" < "sql/$script"
     done
 
+    cecho "Generate session procedure from Session_Info table"
+    gensfw_session_procs "${DBName}" "Session_Info" > sql/session_procs.sql
+
     echo
     cecho "Sorting and loading non-table creation scripts."
     scripts=( $( ls -1 sql | grep -v tables ) )
