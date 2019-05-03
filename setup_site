@@ -34,7 +34,7 @@ tweak_login_srm()
     cecho "Tweaking login script '$target'"
 
     local -a cmds=(
-        # Make templates for copying
+        # Make templates for copying to forms
         append_mode "jumps" --
         last_child "jumps" "jump0:home.srm" --
         last_child "jumps" "jump1:login.srm" --
@@ -56,6 +56,9 @@ tweak_login_srm()
         after_sibling login/type "title:Login to Your Account" --
         after_sibling register/type "title:Create a Trial Account" --
 
+        # Drop salt to save the password
+        after_sibling register_submit/procedure drop-salt --
+
         # Set session-type for login modes
         label SESS_TYPE --
         first_child "*[!session-type][type]" "session-type:establish" --
@@ -72,7 +75,7 @@ tweak_login_srm()
 
         # remove template modes
         delete "jumps" --
-        delete "buttons" --
+        delete "button" --
 
         hilite_message "Writing to '${target}'" --
         write_file "${target}"
